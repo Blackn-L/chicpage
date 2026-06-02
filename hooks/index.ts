@@ -6,3 +6,4 @@ export * from './use-editor-history';
 export * from './use-keyboard-shortcuts';
 export * from './use-export';
 export * from './use-markdown-sync';
+export * from './use-mobile-workspace-controller';
