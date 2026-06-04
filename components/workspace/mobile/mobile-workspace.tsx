@@ -1,56 +1,39 @@
-"use client";
+'use client';
 
-import { useCallback, useMemo, useState } from "react";
-import { Edit3, Eye } from "lucide-react";
+import { useCallback, useMemo, useState } from 'react';
+import { Edit3, Eye } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import { InsertLinkDialog } from "@/components/workspace/dialogs/insert-link-dialog";
-import { useMobileWorkspaceController } from "@/hooks/use-mobile-workspace-controller";
-import { getReadInfo } from "@/lib/content";
-import { cn } from "@/lib/utils";
-import type { MobilePanel } from "@/types/mobile";
+import { Button } from '@/components/ui/button';
+import { InsertLinkDialog } from '@/components/workspace/dialogs/insert-link-dialog';
+import { useMobileWorkspaceController } from '@/hooks/use-mobile-workspace-controller';
+import { getReadInfo } from '@/lib/content';
+import { cn } from '@/lib/utils';
+import type { MobilePanel } from '@/types/mobile';
 
-import { MobileEditorPane } from "./mobile-editor-pane";
-import { MobileExportPreview } from "./mobile-export-preview";
-import { MobilePreviewPane } from "./mobile-preview-pane";
-import { MobileTopBar } from "./mobile-top-bar";
+import { MobileEditorPane } from './mobile-editor-pane';
+import { MobileExportPreview } from './mobile-export-preview';
+import { MobilePreviewPane } from './mobile-preview-pane';
+import { MobileTopBar } from './mobile-top-bar';
 
 const panelSwitchButtonClassName =
-  "fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] right-4 z-50 h-11 rounded-full border-border bg-background px-4 font-bold text-foreground shadow-2xl shadow-foreground/15 ring-1 ring-border/70 backdrop-blur-xl transition-all duration-200 hover:bg-muted";
+  'fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] right-4 z-50 h-11 rounded-full border-border bg-background px-4 font-bold text-foreground shadow-2xl shadow-foreground/15 ring-1 ring-border/70 backdrop-blur-xl transition-all duration-200 hover:bg-muted';
 
 export function MobileWorkspace() {
   const workspace = useMobileWorkspaceController();
-  const [panel, setPanel] = useState<MobilePanel>("edit");
+  const [panel, setPanel] = useState<MobilePanel>('edit');
 
   const { state, refs, actions } = workspace;
-  const { handleImageFile } = actions;
-  const hasActiveTextSelection =
-    panel === "edit" && state.selection && !state.selection.empty;
-  const nextPanel: MobilePanel = panel === "edit" ? "preview" : "edit";
-  const nextPanelLabel = panel === "edit" ? "预览" : "编辑";
-  const previewReadInfo = useMemo(
-    () => getReadInfo(state.markdown),
-    [state.markdown],
-  );
-  const handleInsertImage = useCallback(() => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.onchange = (event) => {
-      const file = (event.target as HTMLInputElement).files?.[0];
-      if (file) handleImageFile(file);
-    };
-    input.click();
-  }, [handleImageFile]);
+  const hasActiveTextSelection = panel === 'edit' && state.selection && !state.selection.empty;
+  const nextPanel: MobilePanel = panel === 'edit' ? 'preview' : 'edit';
+  const nextPanelLabel = panel === 'edit' ? '预览' : '编辑';
+  const previewReadInfo = useMemo(() => getReadInfo(state.markdown), [state.markdown]);
   const handleImportMarkdown = useCallback(() => {
-    const input = document.getElementById(
-      "mobile-md-import-input",
-    ) as HTMLInputElement | null;
+    const input = document.getElementById('mobile-md-import-input') as HTMLInputElement | null;
     input?.click();
   }, []);
 
   return (
-    <div className="flex h-[100svh] w-full max-w-full flex-col overflow-hidden bg-background text-foreground selection:bg-primary/15">
+    <div className='flex h-[100svh] w-full max-w-full flex-col overflow-hidden bg-background text-foreground selection:bg-primary/15'>
       <MobileTopBar
         panel={panel}
         styleTheme={state.styleTheme}
@@ -73,17 +56,17 @@ export function MobileWorkspace() {
         onOpenPosterExportPreview={actions.handleOpenPosterExportPreview}
       />
 
-      <main className="relative min-h-0 flex-1 overflow-hidden">
+      <main className='relative min-h-0 flex-1 overflow-hidden'>
         <section
           className={cn(
-            panel === "edit"
-              ? "absolute inset-0 opacity-100"
-              : "pointer-events-none invisible absolute inset-0 opacity-0",
+            panel === 'edit'
+              ? 'absolute inset-0 opacity-100'
+              : 'pointer-events-none invisible absolute inset-0 opacity-0',
           )}
-          aria-hidden={panel !== "edit"}
+          aria-hidden={panel !== 'edit'}
         >
           <MobileEditorPane
-            isActive={panel === "edit"}
+            isActive={panel === 'edit'}
             markdown={state.markdown}
             editorRef={refs.editorRef}
             selection={state.selection}
@@ -104,7 +87,7 @@ export function MobileWorkspace() {
             onInsertAtLineStart={actions.handleInsertAtLineStart}
             onInsertText={actions.handleInsertText}
             onWrapText={actions.handleWrapText}
-            onInsertImage={handleInsertImage}
+            onInsertImage={actions.handleInsertImage}
             onImportMarkdown={handleImportMarkdown}
             onInsertLink={actions.handleOpenInsertLink}
             onClearFormatting={actions.handleClearFormatting}
@@ -115,8 +98,8 @@ export function MobileWorkspace() {
           />
         </section>
 
-        {panel === "preview" ? (
-          <section className="absolute inset-0 opacity-100">
+        {panel === 'preview' ? (
+          <section className='absolute inset-0 opacity-100'>
             <MobilePreviewPane
               html={state.html}
               styleTheme={state.styleTheme}
@@ -141,22 +124,17 @@ export function MobileWorkspace() {
       </main>
 
       <Button
-        type="button"
-        variant="outline"
+        type='button'
+        variant='outline'
         title={nextPanelLabel}
         aria-label={nextPanelLabel}
         onClick={() => setPanel(nextPanel)}
         className={cn(
           panelSwitchButtonClassName,
-          hasActiveTextSelection &&
-            "pointer-events-none translate-y-2 opacity-0",
+          hasActiveTextSelection && 'pointer-events-none translate-y-2 opacity-0',
         )}
       >
-        {panel === "edit" ? (
-          <Eye data-icon="inline-start" />
-        ) : (
-          <Edit3 data-icon="inline-start" />
-        )}
+        {panel === 'edit' ? <Eye data-icon='inline-start' /> : <Edit3 data-icon='inline-start' />}
         {nextPanelLabel}
       </Button>
 
