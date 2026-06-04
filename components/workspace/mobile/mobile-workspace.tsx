@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Edit3, Eye } from "lucide-react";
 
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { InsertLinkDialog } from "@/components/workspace/dialogs/insert-link-dialog";
 import { useMobileWorkspaceController } from "@/hooks/use-mobile-workspace-controller";
+import { getReadInfo } from "@/lib/content";
 import { cn } from "@/lib/utils";
 import type { MobilePanel } from "@/types/mobile";
 
@@ -14,8 +15,8 @@ import { MobileExportPreview } from "./mobile-export-preview";
 import { MobilePreviewPane } from "./mobile-preview-pane";
 import { MobileTopBar } from "./mobile-top-bar";
 
-const mobileTabTriggerClassName =
-  "rounded-xl border border-transparent data-[state=active]:!border-border data-[state=active]:!bg-background data-[state=active]:!text-foreground data-[state=active]:shadow-sm";
+const panelSwitchButtonClassName =
+  "fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] right-4 z-50 h-11 rounded-full border-border bg-background px-4 font-bold text-foreground shadow-2xl shadow-foreground/15 ring-1 ring-border/70 backdrop-blur-xl transition-all duration-200 hover:bg-muted";
 
 export function MobileWorkspace() {
   const workspace = useMobileWorkspaceController();
@@ -23,6 +24,14 @@ export function MobileWorkspace() {
 
   const { state, refs, actions } = workspace;
   const { handleImageFile } = actions;
+  const hasActiveTextSelection =
+    panel === "edit" && state.selection && !state.selection.empty;
+  const nextPanel: MobilePanel = panel === "edit" ? "preview" : "edit";
+  const nextPanelLabel = panel === "edit" ? "预览" : "编辑";
+  const previewReadInfo = useMemo(
+    () => getReadInfo(state.markdown),
+    [state.markdown],
+  );
   const handleInsertImage = useCallback(() => {
     const input = document.createElement("input");
     input.type = "file";
@@ -120,6 +129,8 @@ export function MobileWorkspace() {
               posterShowHeader={state.posterShowHeader}
               posterShowFooter={state.posterShowFooter}
               posterLayout={state.posterLayout}
+              wordCount={previewReadInfo.wordCount}
+              readTime={previewReadInfo.readTime}
               previewRef={refs.previewRef}
               posterSlideRef={refs.posterSlideRef}
               onPosterRatioChange={actions.setPosterRatio}
@@ -129,24 +140,25 @@ export function MobileWorkspace() {
         ) : null}
       </main>
 
-      <footer className="shrink-0 border-t border-border bg-card/95 px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
-        <Tabs
-          value={panel}
-          onValueChange={(value) => setPanel(value as MobilePanel)}
-          className="gap-0"
-        >
-          <TabsList className="mobile-strong-tabs grid h-11 w-full grid-cols-2 rounded-2xl">
-            <TabsTrigger value="edit" className={mobileTabTriggerClassName}>
-              <Edit3 data-icon="inline-start" />
-              编辑
-            </TabsTrigger>
-            <TabsTrigger value="preview" className={mobileTabTriggerClassName}>
-              <Eye data-icon="inline-start" />
-              预览
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </footer>
+      <Button
+        type="button"
+        variant="outline"
+        title={nextPanelLabel}
+        aria-label={nextPanelLabel}
+        onClick={() => setPanel(nextPanel)}
+        className={cn(
+          panelSwitchButtonClassName,
+          hasActiveTextSelection &&
+            "pointer-events-none translate-y-2 opacity-0",
+        )}
+      >
+        {panel === "edit" ? (
+          <Eye data-icon="inline-start" />
+        ) : (
+          <Edit3 data-icon="inline-start" />
+        )}
+        {nextPanelLabel}
+      </Button>
 
       <MobileExportPreview
         containerRef={refs.exportPreviewRef}

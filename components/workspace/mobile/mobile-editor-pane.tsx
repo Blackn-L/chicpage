@@ -390,22 +390,24 @@ export function MobileEditorPane({
         />
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-card/90 px-3 py-2 text-[11px] font-medium text-muted-foreground backdrop-blur-xl">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="relative flex h-[61px] shrink-0 items-center justify-center border-t border-border bg-card/90 px-3 text-[11px] font-medium text-muted-foreground backdrop-blur-xl">
+        <div className="absolute left-3 flex min-w-0 items-center">
           {isUploading ? (
             <span className="flex items-center gap-1.5 text-foreground">
               <Loader2 data-icon="inline-start" className="animate-spin" />
               处理中
             </span>
           ) : null}
-          <span className="shrink-0">字数 {wordCount}</span>
-          <span className="shrink-0">阅读 {readTime} 分钟</span>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="shrink-0">全文 {wordCount} 字</span>
+          <span className="shrink-0">预计阅读 {readTime} 分钟</span>
+        </div>
+        <div className="absolute right-3 flex shrink-0 items-center gap-1">
           <Button
             type="button"
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             title="上一步"
             disabled={!canUndo}
             className={cn(
@@ -419,7 +421,7 @@ export function MobileEditorPane({
           <Button
             type="button"
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             title="下一步"
             disabled={!canRedo}
             className={cn(

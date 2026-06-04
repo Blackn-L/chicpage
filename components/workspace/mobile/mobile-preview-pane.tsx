@@ -31,6 +31,8 @@ interface MobilePreviewPaneProps {
   posterShowHeader: boolean;
   posterShowFooter: boolean;
   posterLayout: PosterLayoutConfig;
+  wordCount: number;
+  readTime: number;
   previewRef: React.RefObject<HTMLDivElement | null>;
   posterSlideRef: React.RefObject<XHSSlidePreviewMethods | null>;
   onPosterRatioChange: (ratio: PosterRatio) => void;
@@ -49,6 +51,8 @@ export function MobilePreviewPane({
   posterShowHeader,
   posterShowFooter,
   posterLayout,
+  wordCount,
+  readTime,
   previewRef,
   posterSlideRef,
   onPosterRatioChange,
@@ -127,7 +131,7 @@ export function MobilePreviewPane({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-center gap-3 border-t border-border bg-card/90 px-3 py-3 backdrop-blur-xl">
+        <div className="flex h-[61px] shrink-0 items-center justify-center gap-3 border-t border-border bg-card/90 px-3 backdrop-blur-xl">
           <Button
             variant="outline"
             size="icon-sm"
@@ -157,9 +161,6 @@ export function MobilePreviewPane({
                 </Button>
               ))}
             </div>
-            <span className="hidden text-xs font-semibold text-muted-foreground min-[390px]:inline">
-              贴图预览
-            </span>
           </div>
           <Button
             variant="outline"
@@ -176,17 +177,25 @@ export function MobilePreviewPane({
   }
 
   return (
-    <div className="h-full overflow-x-hidden overflow-y-auto bg-background px-3 py-4">
-      <div className="mx-auto min-h-full w-full max-w-[430px] overflow-hidden rounded-[24px] bg-card/70 px-3 py-4 shadow-sm ring-1 ring-border/70 backdrop-blur-sm">
-        <PreviewContent
-          containerRef={previewRef}
-          html={html}
-          styleTheme={styleTheme}
-          imgRadius={imgRadius}
-          activeThemeCss={activeThemeCss}
-          activeTheme={activeTheme}
-          onImageWidthChange={onImageWidthChange}
-        />
+    <div className="flex h-full min-w-0 flex-col overflow-hidden bg-background">
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4">
+        <div className="mx-auto min-h-full w-full max-w-[430px] overflow-hidden rounded-[24px] bg-card/70 px-3 py-4 shadow-sm ring-1 ring-border/70 backdrop-blur-sm">
+          <PreviewContent
+            containerRef={previewRef}
+            html={html}
+            styleTheme={styleTheme}
+            imgRadius={imgRadius}
+            activeThemeCss={activeThemeCss}
+            activeTheme={activeTheme}
+            onImageWidthChange={onImageWidthChange}
+          />
+        </div>
+      </div>
+      <div className="flex h-[61px] shrink-0 items-center justify-center border-t border-border bg-card/90 px-3 text-[11px] font-medium text-muted-foreground backdrop-blur-xl">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="shrink-0">全文 {wordCount} 字</span>
+          <span className="shrink-0">预计阅读 {readTime} 分钟</span>
+        </div>
       </div>
     </div>
   );
