@@ -101,7 +101,7 @@ function downloadBlob(blob: Blob, downloadName: string) {
 function createOffscreenWechatPreview(html: string, activeTheme: ReturnType<typeof getTheme>) {
   const root = document.createElement('div');
   root.style.cssText =
-    'position:fixed;left:-10000px;top:0;width:677px;opacity:0;pointer-events:none;z-index:-1;';
+    'position:fixed;left:-10000px;top:0;width:677px;opacity:0;pointer-events:none;z-index:-1;letter-spacing:0;';
 
   const style = document.createElement('style');
   style.textContent = activeTheme.css;

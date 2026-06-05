@@ -6,6 +6,7 @@ import React, {
   useState,
   useRef,
   useEffect,
+  useCallback,
   useMemo,
   useImperativeHandle,
 } from 'react';
@@ -859,6 +860,102 @@ async function calculateSlides(
 // 保留旧名称，供外部逻辑兼容调用
 export const splitIntoSlides = calculateSlides;
 
+interface SlidePageProps {
+  slide: SlideItem;
+  slideIndex: number;
+  layout: PosterLayoutConfig;
+  theme: XHSTheme;
+  onImageClick: (slideIndex: number, imageIndex: number, image: HTMLImageElement) => void;
+}
+
+// 单页 slide 渲染，用 memo 隔离：当 selectedImage 变化（宽度工具条挂载/卸载）触发
+// 父组件重渲染时，只要这些 props 引用不变，React 会在 fiber 层短路整页子树，
+// dangerouslySetInnerHTML 的图片 DOM 不会被销毁重建，从而避免图片重新请求与闪烁。
+// 选中高亮（is-selected）由父级 useEffect 命令式 toggle，这里不依赖 selectedImage。
+const SlidePage = React.memo(function SlidePage({
+  slide,
+  slideIndex,
+  layout,
+  theme,
+  onImageClick,
+}: SlidePageProps) {
+  return (
+    <div
+      className='xhs-slide-page'
+      style={{
+        backgroundColor: theme.background,
+        backgroundImage: theme.backgroundImage,
+        backgroundRepeat: theme.backgroundRepeat,
+        backgroundSize: theme.backgroundSize,
+        backgroundPosition: theme.backgroundPosition,
+        width: `${layout.width}px`,
+        flexShrink: 0,
+        height: '100%',
+        padding: `${layout.paddingY}px ${layout.paddingX}px`,
+        display: 'flex',
+        flexDirection: 'column',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        className='xhs-slide-content-viewport'
+        style={{
+          flex: 1,
+          width: '100%',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          id='xhs-content'
+          className='xhs-content-wrapper'
+          style={{
+            width: `${layout.contentWidth}px`,
+            maxWidth: `${layout.contentWidth}px`,
+            height: `${layout.contentHeight}px`,
+            overflow: 'hidden',
+            display: 'block',
+          }}
+        >
+          <div
+            id='chicpage'
+            dangerouslySetInnerHTML={{ __html: slide.html }}
+            ref={node => {
+              if (!node) return;
+              const images = Array.from(node.querySelectorAll('img'));
+              images.forEach((img, imageIndex) => {
+                const markdownImageIndex = Number(img.dataset.chicpageImageIndex ?? imageIndex);
+                img.classList.add('xhs-preview-image-selectable');
+                img.dataset.imageIndex = String(markdownImageIndex);
+                img.dataset.slideIndex = String(slideIndex);
+                img.style.pointerEvents = 'auto';
+                const imageWidth = img.style.width;
+                if (imageWidth.endsWith('%')) {
+                  const widthPercent = Number.parseInt(imageWidth, 10);
+                  if (Number.isFinite(widthPercent)) {
+                    img.style.setProperty(
+                      'max-height',
+                      `${Math.round((Math.floor(layout.contentHeight * 0.62) * Math.min(100, Math.max(40, widthPercent))) / 100)}px`,
+                      'important',
+                    );
+                  }
+                }
+                img.onmousedown = event => event.stopPropagation();
+                img.ontouchstart = event => event.stopPropagation();
+                img.onclick = event => {
+                  event.stopPropagation();
+                  onImageClick(slideIndex, markdownImageIndex, img);
+                };
+              });
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const XHSSlidePreviewBase = forwardRef<XHSSlidePreviewMethods, XHSSlidePreviewProps>(
   (
     {
@@ -1008,28 +1105,66 @@ const XHSSlidePreviewBase = forwardRef<XHSSlidePreviewMethods, XHSSlidePreviewPr
       };
     }, [selectedImage]);
 
-    const getImageControlPosition = (slideIndex: number, imageIndex: number) => {
+    const getImageControlPosition = useCallback(
+      (slideIndex: number, imageIndex: number) => {
+        const container = containerRef.current;
+        const image = container?.querySelector<HTMLImageElement>(
+          `img[data-slide-index="${slideIndex}"][data-image-index="${imageIndex}"]`,
+        );
+        if (!container || !image) return { top: 0, left: layout.width / 2 };
+
+        const imageRect = image.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const controlWidth = 244;
+        const controlHeight = 76;
+        const left = Math.min(
+          Math.max(imageRect.left - containerRect.left + imageRect.width / 2, controlWidth / 2 + 8),
+          layout.width - controlWidth / 2 - 8,
+        );
+        const preferredTop = imageRect.bottom - containerRect.top + 10;
+        const fallbackTop = imageRect.top - containerRect.top - controlHeight - 10;
+        const top =
+          preferredTop + controlHeight <= layout.height - 8
+            ? preferredTop
+            : Math.max(8, fallbackTop);
+
+        return { top, left };
+      },
+      [layout],
+    );
+
+    // 点击图片：记录选中信息并定位宽度工具条。作为稳定回调传给 SlidePage，
+    // 使其在 selectedImage 变化时不重渲染（图片 DOM 因此保持稳定）。
+    const handleImageClick = useCallback(
+      (slideIndex: number, imageIndex: number, image: HTMLImageElement) => {
+        const width = image.style.width;
+        const widthPercent = width.endsWith('%') ? Number.parseInt(width, 10) : 100;
+        setSelectedImage({
+          slideIndex,
+          imageIndex,
+          src: image.currentSrc || image.getAttribute('src') || '',
+          widthPercent: Number.isFinite(widthPercent) ? widthPercent : 100,
+          ...getImageControlPosition(slideIndex, imageIndex),
+        });
+      },
+      [getImageControlPosition],
+    );
+
+    // 选中高亮与 SlidePage 渲染解耦：selectedImage 变化时仅命令式 toggle is-selected，
+    // 不触发 SlidePage 重渲染，从而不重建图片 DOM。
+    useEffect(() => {
       const container = containerRef.current;
-      const image = container?.querySelector<HTMLImageElement>(
-        `img[data-slide-index="${slideIndex}"][data-image-index="${imageIndex}"]`,
-      );
-      if (!container || !image) return { top: 0, left: layout.width / 2 };
-
-      const imageRect = image.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      const controlWidth = 244;
-      const controlHeight = 76;
-      const left = Math.min(
-        Math.max(imageRect.left - containerRect.left + imageRect.width / 2, controlWidth / 2 + 8),
-        layout.width - controlWidth / 2 - 8,
-      );
-      const preferredTop = imageRect.bottom - containerRect.top + 10;
-      const fallbackTop = imageRect.top - containerRect.top - controlHeight - 10;
-      const top =
-        preferredTop + controlHeight <= layout.height - 8 ? preferredTop : Math.max(8, fallbackTop);
-
-      return { top, left };
-    };
+      if (!container) return;
+      const images = container.querySelectorAll<HTMLImageElement>('img[data-image-index]');
+      images.forEach(img => {
+        const si = Number(img.dataset.slideIndex);
+        const ii = Number(img.dataset.imageIndex);
+        img.classList.toggle(
+          'is-selected',
+          selectedImage?.slideIndex === si && selectedImage?.imageIndex === ii,
+        );
+      });
+    }, [selectedImage, slides]);
 
     useImperativeHandle(ref, () => ({
       getSlidesCount: () => slideCount,
@@ -1155,96 +1290,14 @@ const XHSSlidePreviewBase = forwardRef<XHSSlidePreviewMethods, XHSSlidePreviewPr
             }}
           >
             {displaySlides.map((slide, i) => (
-              <div
+              <SlidePage
                 key={`${slide.sectionId}-${slide.pageInGroup}-${i}`}
-                className='xhs-slide-page'
-                style={{
-                  backgroundColor: theme.background,
-                  backgroundImage: theme.backgroundImage,
-                  backgroundRepeat: theme.backgroundRepeat,
-                  backgroundSize: theme.backgroundSize,
-                  backgroundPosition: theme.backgroundPosition,
-                  width: `${layout.width}px`,
-                  flexShrink: 0,
-                  height: '100%',
-                  padding: `${layout.paddingY}px ${layout.paddingX}px`,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  boxSizing: 'border-box',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  className='xhs-slide-content-viewport'
-                  style={{
-                    flex: 1,
-                    width: '100%',
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    id='xhs-content'
-                    className='xhs-content-wrapper'
-                    style={{
-                      width: `${layout.contentWidth}px`,
-                      maxWidth: `${layout.contentWidth}px`,
-                      height: `${layout.contentHeight}px`,
-                      overflow: 'hidden',
-                      display: 'block',
-                    }}
-                  >
-                    <div
-                      id='chicpage'
-                      dangerouslySetInnerHTML={{ __html: slide.html }}
-                      ref={node => {
-                        if (!node) return;
-                        const images = Array.from(node.querySelectorAll('img'));
-                        images.forEach((img, imageIndex) => {
-                          const markdownImageIndex = Number(
-                            img.dataset.chicpageImageIndex ?? imageIndex,
-                          );
-                          const isSelected =
-                            selectedImage?.slideIndex === i &&
-                            selectedImage?.imageIndex === markdownImageIndex;
-                          img.classList.add('xhs-preview-image-selectable');
-                          img.classList.toggle('is-selected', isSelected);
-                          img.dataset.imageIndex = String(markdownImageIndex);
-                          img.dataset.slideIndex = String(i);
-                          img.style.pointerEvents = 'auto';
-                          const imageWidth = img.style.width;
-                          if (imageWidth.endsWith('%')) {
-                            const widthPercent = Number.parseInt(imageWidth, 10);
-                            if (Number.isFinite(widthPercent)) {
-                              img.style.setProperty(
-                                'max-height',
-                                `${Math.round((Math.floor(layout.contentHeight * 0.62) * Math.min(100, Math.max(40, widthPercent))) / 100)}px`,
-                                'important',
-                              );
-                            }
-                          }
-                          img.onmousedown = event => event.stopPropagation();
-                          img.ontouchstart = event => event.stopPropagation();
-                          img.onclick = event => {
-                            event.stopPropagation();
-                            const width = img.style.width;
-                            const widthPercent = width.endsWith('%')
-                              ? Number.parseInt(width, 10)
-                              : 100;
-                            setSelectedImage({
-                              slideIndex: i,
-                              imageIndex: markdownImageIndex,
-                              src: img.currentSrc || img.getAttribute('src') || '',
-                              widthPercent: Number.isFinite(widthPercent) ? widthPercent : 100,
-                              ...getImageControlPosition(i, markdownImageIndex),
-                            });
-                          };
-                        });
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+                slide={slide}
+                slideIndex={i}
+                layout={layout}
+                theme={theme}
+                onImageClick={handleImageClick}
+              />
             ))}
           </div>
         </div>

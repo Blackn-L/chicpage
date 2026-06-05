@@ -143,7 +143,7 @@ export function MobileExportPreview({
         if (!nextOpen) handleClose();
       }}
     >
-      <DrawerContent className='h-[92svh] max-h-[760px] overflow-hidden rounded-t-[28px] data-[vaul-drawer-direction=bottom]:max-h-[92svh]'>
+      <DrawerContent className='h-[92svh] max-h-190 overflow-hidden rounded-t-[28px] tracking-normal data-[vaul-drawer-direction=bottom]:max-h-[92svh]'>
         <style>{scopedCSS}</style>
 
         <div

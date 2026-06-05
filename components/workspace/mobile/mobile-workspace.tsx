@@ -33,7 +33,7 @@ export function MobileWorkspace() {
   }, []);
 
   return (
-    <div className='flex h-[100svh] w-full max-w-full flex-col overflow-hidden bg-background text-foreground selection:bg-primary/15'>
+    <div className='flex h-svh w-full max-w-full flex-col overflow-hidden bg-background tracking-normal text-foreground selection:bg-primary/15'>
       <MobileTopBar
         panel={panel}
         styleTheme={state.styleTheme}
